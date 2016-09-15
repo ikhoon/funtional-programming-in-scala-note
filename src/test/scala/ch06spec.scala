@@ -40,4 +40,16 @@ class ch06spec extends Properties("functional state") {
     list.size == i
   }
 
+  property("testIntsWithSequence") = forAll(Gen.posNum[Int]) { (i: Int) =>
+   val (list, _) = intsWithSequence(i)(RNG.simple(i))
+   val (list2, _) = ints(i)(RNG.simple(i))
+   list == list2
+  }
+
+  property("positiveIntegerWithFlatMap") = forAll { (i: Int) =>
+    val (pos, _) = positiveIntegerWithFlatMap(RNG.simple(i))
+    val (pos1, _) = positiveInteger(RNG.simple(i))
+    pos == pos1
+  }
+
 }

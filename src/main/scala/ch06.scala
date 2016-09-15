@@ -58,8 +58,8 @@ object ch06 {
   def ints(count: Int)(rng: RNG): (List[Int], RNG) = {
     if(count > 0) {
       val (int, rng2) = rng.nextInt
-      val (list, rng3) = ints(count - 1)(rng2)
-      (int :: list, rng3)
+      val (list: List[Int], rng3) = ints(count - 1)(rng2)
+      (list ::: List(int), rng3)
     }
     else {
       (Nil, rng)
@@ -100,6 +100,91 @@ object ch06 {
   def doubleIntWithMap2: Rand[(Double, Int)] =
     map2(doubleWithMap, int)((_, _))
 
-  
+  // ex.8 Implement sequence, for combining a List of transition into single transition
+  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] =
+    rng => fs.foldLeft((Nil: List[A], rng)) {
+      case ((xs, rng2), rand) =>
+        val (x, rng3) = rand(rng2)
+        (x :: xs, rng3)
+    }
+
+  // Use it to reimplement the ints function you write before
+  def intsWithSequence(count: Int): Rand[List[Int]] =
+    sequence(List.fill(count)(int))
+
+  // ex.9 Implement flatMap, then use it to reimplement positiveInt
+  def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] =
+    rng => {
+      val (a, rng2) = f(rng)
+      g(a)(rng2)
+    }
+
+  def positiveIntegerWithFlatMap: Rand[Int] =
+    flatMap(int) {
+      i => if(i == Int.MinValue) unit(Int.MaxValue) else unit(math.abs(i))
+    }
+
+  // ex.10 Reimplement map and map2 in terms of flatMap
+  def `map'`[A, B](fa: Rand[A])(f: A => B): Rand[B] =
+    flatMap(fa)(a => unit(f(a)))
+
+  def `'map2'`[A, B, C](fa: Rand[A], fb: Rand[B])(f: (A, B) => C): Rand[C] =
+    flatMap(fa) { a =>
+      flatMap(fb) { b =>
+        unit(f(a, b))
+      }
+    }
+
+  // They are general-purpose functions for working with state actions.
+//  def map[S, A, B](fa: S => (A, S))(f: A => B): S => (B, S)
+
+
+  // state action
+  type State[S, +A] = S => (A, S)
+
+  // We might even want to write it as its own class, wrapping the underlying function like this:
+  case class `State'`[S, A](run: S => (A, S))
+
+  type `Rand'`[A] = State[RNG, A]
+
+  object generalize {
+    import State._
+    case class State[S, A](run: S => (A, S)) {
+      def flatMap[B](f: A => State[S, B]): State[S, B] =
+        State[S, B](s1 => {
+          val (a, s2) = run(s1)
+          f(a).run(s2)
+        })
+
+      def map[B](f: A => B): State[S, B] =
+        flatMap(a => unit(f(a)))
+
+    }
+
+
+    object State {
+      def unit[S, A](a: A): State[S, A] = State((a, _))
+      def map2[S, A, B, C]
+        (sa: State[S, A], sb: State[S, B])
+        (f: (A, B) => C): State[S, C] =
+        sa.flatMap{ a =>
+          sb.flatMap { b =>
+            unit(f(a, b))
+          }
+        }
+
+      def sequence[S, A](xsa: List[State[S, A]]): State[S, List[A]] =
+        xsa.foldLeft(unit[S, List[A]](Nil)) {
+          case (sxs, sa) =>
+            sa.flatMap { a =>
+              sxs.flatMap { xs =>
+                unit(a :: xs)
+              }
+            }
+        }
+    }
+
+  }
+
 
 }
