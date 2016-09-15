@@ -66,4 +66,40 @@ object ch06 {
     }
   }
 
+  type Rand[+A] = RNG => (A, RNG)
+
+  val int: Rand[Int] = _.nextInt
+
+  def unit[A](a: A): Rand[A] = rng => (a, rng)
+
+  def map[A, B](s: Rand[A])(f: A => B): Rand[B] =
+    rng => {
+      val (a, rng2) = s(rng)
+      (f(a), rng2)
+    }
+
+  // ex.5 Use map to generate an Int between 0 to n, inclusive
+  def positiveMax(n: Int): Rand[Int] =
+    map(int)(i => i % (n + 1))
+
+  // ex.6 Use map to reimplement RNG.double in a more elegant way.
+  def doubleWithMap: Rand[Double] =
+    map(int)(_.toDouble)
+
+  // ex.7 Write map2 and reimplement intDouble and doubleInt
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+    rng => {
+      val (a, rng2) = ra(rng)
+      val (b, rng3) = rb(rng2)
+      (f(a, b), rng3)
+    }
+
+  def intDoubleWithMap2: Rand[(Int, Double)] =
+    map2(int, doubleWithMap)((_, _))
+
+  def doubleIntWithMap2: Rand[(Double, Int)] =
+    map2(doubleWithMap, int)((_, _))
+
+  
+
 }
