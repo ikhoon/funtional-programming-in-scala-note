@@ -52,4 +52,20 @@ class ch06spec extends Properties("functional state") {
     pos == pos1
   }
 
+  property("state") = forAll { (i: Int) =>
+    val state: State[RNG, Int] = State(int)
+    val (a, rng) = state.run(RNG.simple(i))
+    val (b, _) = state.run(rng)
+    val state1: State[RNG, (Int, Int)] = for {
+      s1 <- state
+      s2 <- state
+    } yield (s1, s2)
+
+    val ((c, d), _) = state1.run(RNG.simple(i))
+    a == c && b == d
+  }
+  property("modify") = forAll { (i: Int) =>
+    true
+  }
+
 }

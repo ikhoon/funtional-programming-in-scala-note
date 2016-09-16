@@ -140,51 +140,62 @@ object ch06 {
 
 
   // state action
-  type State[S, +A] = S => (A, S)
+//  type State[S, +A] = S => (A, S)
 
   // We might even want to write it as its own class, wrapping the underlying function like this:
-  case class `State'`[S, A](run: S => (A, S))
+//  case class `State'`[S, A](run: S => (A, S))
 
-  type `Rand'`[A] = State[RNG, A]
+//  type `Rand'`[A] = State[RNG, A]
 
-  object generalize {
-    import State._
-    case class State[S, A](run: S => (A, S)) {
-      def flatMap[B](f: A => State[S, B]): State[S, B] =
-        State[S, B](s1 => {
-          val (a, s2) = run(s1)
-          f(a).run(s2)
-        })
 
-      def map[B](f: A => B): State[S, B] =
-        flatMap(a => unit(f(a)))
 
+}
+
+// ex.11 Generalize the functions unit, map, map2, flatMap and sequence
+case class State[S, A](run: S => (A, S)) {
+  import State.unit
+
+  def flatMap[B](f: A => State[S, B]): State[S, B] =
+    State[S, B](s1 => {
+      val (a, s2) = run(s1)
+      f(a).run(s2)
+    })
+
+  def map[B](f: A => B): State[S, B] =
+    flatMap(a => unit(f(a)))
+
+  // ex.12 Come up with the signatures for the get and set, then write their implementations
+  def get: State[S, S] = State(s => (s, s))
+
+  def set(s: S): State[S, Unit] = State(_ => ((), s))
+
+  def modify(f: S => S): State[S, Unit] =
+    for {
+      s <- get
+      _ <- set(f(s))
+    } yield ()
+
+}
+
+object State {
+  def unit[S, A](a: A): State[S, A] = State((a, _))
+
+  def map2[S, A, B, C]
+    (sa: State[S, A], sb: State[S, B])
+    (f: (A, B) => C): State[S, C] =
+    sa.flatMap{ a =>
+      sb.flatMap { b =>
+        unit(f(a, b))
+      }
     }
 
-
-    object State {
-      def unit[S, A](a: A): State[S, A] = State((a, _))
-      def map2[S, A, B, C]
-        (sa: State[S, A], sb: State[S, B])
-        (f: (A, B) => C): State[S, C] =
-        sa.flatMap{ a =>
-          sb.flatMap { b =>
-            unit(f(a, b))
+  def sequence[S, A](xsa: List[State[S, A]]): State[S, List[A]] =
+    xsa.foldLeft(unit[S, List[A]](Nil)) {
+      case (sxs, sa) =>
+        sa.flatMap { a =>
+          sxs.flatMap { xs =>
+            unit(a :: xs)
           }
         }
-
-      def sequence[S, A](xsa: List[State[S, A]]): State[S, List[A]] =
-        xsa.foldLeft(unit[S, List[A]](Nil)) {
-          case (sxs, sa) =>
-            sa.flatMap { a =>
-              sxs.flatMap { xs =>
-                unit(a :: xs)
-              }
-            }
-        }
     }
-
-  }
-
-
 }
