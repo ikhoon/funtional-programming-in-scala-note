@@ -68,4 +68,13 @@ class ch06spec extends Properties("functional state") {
     true
   }
 
+  property("candy dispenser") = forAll { (i: Int) =>
+    import Machine._
+    val inputs = List(Coin, Turn)
+    val s: State[Machine, (Int, Int)] = simulateMachine(inputs)
+    val machine = Machine(true, 10, i)
+    val ((candies, coin), m) = s.run(machine)
+    candies == 9 && coin == i + 1
+  }
+
 }

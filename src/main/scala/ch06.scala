@@ -164,16 +164,6 @@ case class State[S, A](run: S => (A, S)) {
   def map[B](f: A => B): State[S, B] =
     flatMap(a => unit(f(a)))
 
-  // ex.12 Come up with the signatures for the get and set, then write their implementations
-  def get: State[S, S] = State(s => (s, s))
-
-  def set(s: S): State[S, Unit] = State(_ => ((), s))
-
-  def modify(f: S => S): State[S, Unit] =
-    for {
-      s <- get
-      _ <- set(f(s))
-    } yield ()
 
 }
 
@@ -198,4 +188,55 @@ object State {
           }
         }
     }
+
+  // ex.12 Come up with the signatures for the get and set, then write their implementations
+  def get[S]: State[S, S] = State(s => (s, s))
+
+  def set[S](s: S): State[S, Unit] = State(_ => ((), s))
+
+  def modify[S](f: S => S): State[S, Unit] =
+    for {
+      s <- get
+      _ <- set(f(s))
+    } yield ()
+}
+
+// ex.13 To gain experience with the use of State, implement a simulation of a simple candy dispenser
+sealed trait Input
+case object Coin extends Input
+case object Turn extends Input
+
+case class Machine(locked: Boolean, candies: Int, coins: Int)
+
+object Machine {
+  import State._
+  /**
+  * Rules
+  * 1. Insert a coin into a locked machine will cause it to unlock if there is any candy left.
+  * 2. Turning the knob on an unlocked machine will cause it to dispense candy and become locked.
+  * 3. Turning the knob on a locked machine or inserting a coin into an unlocked machine does nothing.
+  * 4. A machine that is out of candy ignores all inputs.
+    */
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
+
+    def dispense(i: Input) = modify { (s: Machine) =>
+        (i, s) match {
+          case (_, Machine(_, 0, _)) => s                 // rule 4
+          case (Coin, Machine(false, _, _)) => s          // rule 3
+          case (Turn, Machine(true, _, _)) => s           // rule 3
+          case (Turn, Machine(false, candies, coins)) =>
+            Machine(true, candies - 1, coins)             // rule 2
+          case (Coin, Machine(true, candies, coins)) =>   // rule 1
+            Machine(false, candies, coins + 1)
+        }
+      }
+
+    val list: List[State[Machine, Unit]] = inputs reverseMap dispense
+    val state: State[Machine, List[Unit]] = sequence(list)
+
+    for {
+      _ <- state
+      s <- get
+    } yield (s.candies, s.coins)
+  }
 }
