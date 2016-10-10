@@ -37,3 +37,11 @@ project/boot/
 .history
 .cache
 
+#### joe made this: http://goel.io/joe
+
+#####=== Ensime ===#####
+# Ensime specific
+.ensime
+.ensime_cache/
+.ensime_lucene/
+

@@ -21,12 +21,15 @@ object Parallel {
       override def call(): A = fa(es).get()
     })
 
+  def delay[A](fa: => Par[A]): Par[A] =
+    es => fa(es)
+
   def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
 
   def async[A](a: => A): Par[A] = lazyUnit(a)
 
   def asyncF[A, B](f: A => B): A => Par[B] =
-    f andThen lazyUnit
+    a => lazyUnit(f(a))
 
   // ex.1 Par.map2 is a new high-order function for combining the result of two compuation.
   // Give most general signature possible.
@@ -60,6 +63,7 @@ object Parallel {
       case h :: t => map2(h, fork(sequenceRight(t)))(_ :: _)
     }
 
+
   def sequenceBalance[A](fpa: List[Par[A]]): Par[List[A]] = fork {
     fpa match {
       case Nil => unit(Nil)
@@ -80,7 +84,7 @@ object Parallel {
 
   // Given map(y)(id) == y, it's a free theorem that map(map(y)(g))(f)  == map(y)(f compose g)
   // This is sometimes called map fusion. Prove it!
-  
+
 
 
   // primitive
